@@ -30,9 +30,9 @@ from .storage.loader import RAW_DIR, DB_PATH, main as load_sqlite
 def display_stage(number, title):
     # Write the formatted output to the terminal.
     console.print()
-    # Write the formatted output to the terminal.
+    # Use a warm brown to distinguish stage headings from blue contract labels.
     console.print(
-        f"[#8EAABD]Stage {number} / {title}[/#8EAABD]"
+        f"[#B08D72]Stage {number} / {title}[/#B08D72]"
     )
     # Write the formatted output to the terminal.
     console.print()
