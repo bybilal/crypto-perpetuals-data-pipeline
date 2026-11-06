@@ -4,7 +4,7 @@ Run `crypto-pipeline --human-log --limit 25 --coverage` for one live capture. Th
 
 Temporary network and HTTP 500/502/503/504 failures receive at most three attempts, separated by two and four seconds. HTTP access restrictions and rate limits surface immediately. A per-database process lock prevents overlapping CLI fetch/load runs. The standalone legacy loader should not be run concurrently with the collector.
 
-Coverage checks twelve five-minute period ends over the last mature hour with one minute of publication grace. OI and candles are counted independently. JSONL records exact missing timestamps. Missing observations are evidence of absent stored data, not a diagnosis of source failure. Coverage warnings do not change a successful run's exit code.
+Coverage checks twelve five-minute period ends over the last mature hour with one minute of publication grace. OI and candles are counted independently. JSONL records exact missing timestamps and latest observed boundaries. Missing boundaries at most ten minutes old are separated from older missing boundaries within the report window; recent absence is a possible publication delay, not a confirmed diagnosis. Missing observations are evidence of absent stored data, not a diagnosis of source failure. Coverage warnings do not change a successful run's exit code.
 
 ## macOS schedule
 

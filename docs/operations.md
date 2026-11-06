@@ -43,7 +43,7 @@ Each command-line pipeline run creates `logs/<run-id>.jsonl`. `--human-log` adds
 crypto-pipeline --offline --raw-dir /path/to/raw --db-path /path/to/test.sqlite3 --log-dir /path/to/logs --human-log
 ```
 
-Exceptions produce exit status 1 and a failed event. Invalid records and changed raw files retain the earlier skip-and-report behavior; completion logs expose counts and `quality_warnings`. Thus exit status 0 means the pipeline finished, not that every source record was accepted. Metadata corruption fails the metadata/load transaction. The standalone loader compatibility script does not create a run log; use the pipeline command for operational logging.
+Exceptions produce exit status 1 and a failed event. Invalid individual records are skipped with counts and `quality_warnings`. File-level failures (including checksum changes or malformed JSON) now produce pipeline exit status 1 after reporting the loader results. Valid rows already committed remain stored for safe retry. Exit status 0 still does not mean every individual source record was accepted. Metadata corruption fails the metadata/load transaction. The standalone loader compatibility script does not create a run log; use the pipeline command for operational logging.
 
 ## Database safety
 

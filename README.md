@@ -292,3 +292,7 @@ The current local SQLite pipeline is a separate development milestone and has no
 - The local pipeline is not yet deployed as a scheduled cloud service.
 
 This repository is an actively developed data engineering portfolio project.
+
+## Phase 1 validation
+
+See the [acceptance report](docs/phase1-validation.md) for verified units, timestamp findings, limitations and reproducible checks, and the [implemented SQLite ER diagram](docs/implemented-schema.md) for the actual version-2 schema. CoinGecko integration remains a separate approval-gated milestone.
