@@ -16,3 +16,9 @@ __pycache__/
 # Editor files
 .vscode/
 .idea/
+
+
+data/raw/
+data/*.sqlite3
+# Legacy raw captures
+src/data/
