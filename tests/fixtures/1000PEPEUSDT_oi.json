@@ -1,0 +1,23 @@
+[
+  {
+    "symbol": "1000PEPEUSDT",
+    "sumOpenInterest": "23368409417.00000000",
+    "sumOpenInterestValue": "118505877.83549040",
+    "CMCCirculatingSupply": "413772350098.13043000",
+    "timestamp": 1793991300000
+  },
+  {
+    "symbol": "1000PEPEUSDT",
+    "sumOpenInterest": "23366586642.00000000",
+    "sumOpenInterestValue": "118386577.55582657",
+    "CMCCirculatingSupply": "413772350098.13043000",
+    "timestamp": 1793991600000
+  },
+  {
+    "symbol": "1000PEPEUSDT",
+    "sumOpenInterest": "23364060039.00000000",
+    "sumOpenInterestValue": "118374010.18759350",
+    "CMCCirculatingSupply": "413772350098.13043000",
+    "timestamp": 1793991900000
+  }
+]
