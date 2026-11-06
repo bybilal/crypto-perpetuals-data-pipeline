@@ -5,7 +5,7 @@ A Python data engineering project for collecting, validating, normalizing, stori
 
 The goal is to build a reliable historical dataset for studying price movements, open interest, trading activity, and market anomalies across perpetual futures contracts.
 
-**Current status:** Working local ingestion and SQLite pipeline. Cloud infrastructure and analytics are being developed incrementally.
+**Current status:** Working live Binance ingestion with SQLite, bounded retries, overlapping collection, last-hour coverage reporting and a macOS launchd installer. Includes automated regression tests and structured run logs.
 
 ## Architecture
 
@@ -131,7 +131,7 @@ Implementation now lives in `src/crypto_pipeline/`, with separate Binance retrie
 
 ### Prerequisites
 
-- Python 3
+- Python 3.11+ on macOS or Linux
 - Internet access for online ingestion
 - Access to the relevant Binance public market-data endpoints
 
@@ -161,6 +161,24 @@ python -m pytest -q
 ```
 
 ### Run the Pipeline
+
+Live collection with two hours of overlap and a last-hour coverage report:
+
+```bash
+crypto-pipeline --human-log --limit 25 --coverage
+```
+
+The overlap recovers short interruptions. Longer gaps require a later recovery workflow. Coverage counts absent observations without assuming their cause.
+
+On macOS, install the user-level five-minute schedule after a successful manual run:
+
+```bash
+python -m crypto_pipeline.schedule install
+python -m crypto_pipeline.schedule status
+```
+
+Stop it with `python -m crypto_pipeline.schedule stop`. The schedule runs at minutes 01, 06, 11 and so on, while logged in. It also runs at login/install. Sleep and shutdown interrupt collection. See [local collection operations](docs/live-collection.md).
+
 
 Online mode:
 
@@ -241,10 +259,10 @@ The current local SQLite pipeline is a separate development milestone and has no
 
 ### Next
 
-- Add regular collection, recent-history backfilling and explicit gap detection
+- Extend recovery beyond the recent overlap window
 - Verify underlying-token multipliers against explicit primary specifications
 - Review staged CoinGecko identity/category/valuation integration
-- Add continuous collection and gap monitoring
+- Add log retention and source storage lifecycle management
 
 ### Analytics
 

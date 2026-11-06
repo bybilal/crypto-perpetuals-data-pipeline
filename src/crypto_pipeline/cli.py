@@ -1,6 +1,8 @@
 
 # Import argparse for use below.
 import argparse
+from .locking import pipeline_lock
+from .coverage import display_recent_coverage
 # Import perf_counter from time for use below.
 from time import perf_counter
 # Import Path from pathlib for use below.
@@ -43,7 +45,7 @@ def display_stage(number, title):
 # ----------------------------------------
 
 # Coordinate the local ingestion pipeline.
-def run_pipeline(offline=False):
+def run_pipeline(offline=False, limit=3, coverage=False):
     """
     Coordinate the local ingestion pipeline.
 
@@ -77,7 +79,7 @@ def run_pipeline(offline=False):
 
     else:
         # Fetch and save the configured Binance market-data responses; store the result in stats.
-        stats = fetch_market_data()
+        stats = fetch_market_data(limit=limit)
 
         # Write the formatted output to the terminal.
         console.print()
@@ -139,6 +141,10 @@ def run_pipeline(offline=False):
         # Write the formatted output to the terminal.
         console.print("[yellow]Completed with data-quality warnings; see the run log for details.[/yellow]")
 
+    # Optional monitoring checks each stream independently over the last hour.
+    if coverage:
+        display_recent_coverage(DB_PATH)
+
     # Completion.
     elapsed = perf_counter() - started
 
@@ -188,6 +194,10 @@ def main():
     # Declare this command-line option, including its default or help text.
     parser.add_argument("--human-log", action="store_true", help="Also write a plain-text operational log")
     # Parse the supplied command-line options and their defaults; store the result in args.
+    # Overlapping recent batches recover observations missed during brief interruptions.
+    parser.add_argument("--limit", type=int, default=3, choices=range(1, 501), metavar="1..500")
+    # Show and log separate candle and OI coverage over mature boundaries.
+    parser.add_argument("--coverage", action="store_true", help="Report last-hour OI/candle coverage")
     args = parser.parse_args()
     # Apply command-line paths consistently to fetching and database loading.
     global_paths(args)
@@ -200,7 +210,9 @@ def main():
             # Run this operation with the error handling and cleanup defined below.
             try:
                 # Coordinate fetch, normalization, database storage and terminal reporting.
-                run_pipeline(offline=args.offline)
+                # Serialize manual and scheduled CLI runs through the same database lock.
+                with pipeline_lock(DB_PATH):
+                    run_pipeline(offline=args.offline, limit=args.limit, coverage=args.coverage)
             except Exception as error:
                 # Write this stage event to the active run logs without printing to the terminal.
                 emit("pipeline", "failed", error_type=type(error).__name__, error=str(error))

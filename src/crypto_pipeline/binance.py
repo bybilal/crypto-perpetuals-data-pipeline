@@ -1,6 +1,9 @@
 
 # Import json for use below.
 import json
+# Sleep only between bounded retries for transient network failures.
+from time import sleep
+from .events import emit
 # Import Path from pathlib for use below.
 from pathlib import Path
 # Import datetime, timezone from datetime for use below.
@@ -64,10 +67,28 @@ from .config import PROJECT_ROOT, RAW_DIR
 def request_and_save(url, filename_prefix):
     """Fetch and preserve the original API response."""
 
-    # Manage urlopen(url, timeout=10) with automatic context cleanup on exit.
-    with urlopen(url, timeout=10) as response:
-        # Read the original HTTP response bytes before any JSON decoding changes their representation.
-        raw_bytes = response.read()
+    # Only retry temporary server/transport failures, with a bounded total of three attempts.
+    for attempt in range(3):
+        try:
+            # Always use the same requested host and close each response after reading it.
+            with urlopen(url, timeout=10) as response:
+                raw_bytes = response.read()
+            # A complete response ends the retry loop before any file is written.
+            break
+        except HTTPError as error:
+            # Access restrictions and rate limits surface immediately for the next scheduled run.
+            if error.code not in (500, 502, 503, 504) or attempt == 2:
+                raise
+            # Release the failed response before waiting for a retry.
+            error.close()
+            emit("fetch", "retry", attempt=attempt + 1, status=error.code)
+        except (URLError, TimeoutError) as error:
+            # Preserve the final exception for normal request-error reporting.
+            if attempt == 2:
+                raise
+            emit("fetch", "retry", attempt=attempt + 1, error=str(error))
+        # Wait two seconds, then four seconds, between attempts.
+        sleep(2 ** (attempt + 1))
 
     # Format the timestamp using the explicit date/time pattern; store the result in timestamp.
     timestamp = datetime.now(
@@ -78,7 +99,9 @@ def request_and_save(url, filename_prefix):
     path = RAW_DIR / f"{filename_prefix}_{timestamp}.json"
 
     # Store original bytes before parsing.
-    path.write_bytes(raw_bytes)
+    # Exclusive creation prevents an unexpected filename collision from replacing a capture.
+    with path.open("xb") as output:
+        output.write(raw_bytes)
 
     # Return (json.loads(raw_bytes), path) to the caller.
     return json.loads(raw_bytes), path
@@ -151,8 +174,12 @@ def fetch_exchange_info():
 # ----------------------------------------
 
 # Fetch market observations and contract metadata.
-def fetch_market_data():
+def fetch_market_data(limit=LIMIT):
     """Fetch market observations and contract metadata."""
+
+    # Both endpoints support this bounded request size.
+    if isinstance(limit, bool) or not isinstance(limit, int) or not 1 <= limit <= 500:
+        raise ValueError("limit must be an integer between 1 and 500")
 
     # Create the needed output directory, including missing parents.
     RAW_DIR.mkdir(parents=True, exist_ok=True)
@@ -173,6 +200,7 @@ def fetch_market_data():
             query = urlencode({
                 "symbol": symbol,
                 **parameters,
+                "limit": limit,
             })
 
             # Build the text using the current field values; store the result in url.
