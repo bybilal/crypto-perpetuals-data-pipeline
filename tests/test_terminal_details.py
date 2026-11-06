@@ -81,7 +81,7 @@ def test_warnings_visible_in_terminal(monkeypatch, tmp_path, capsys):
     # Call monkeypatch.setattr with the supplied arguments.
     monkeypatch.setattr(cli, 'DB_PATH', database)
     # Call monkeypatch.setattr with the supplied arguments.
-    monkeypatch.setattr(cli, 'load_sqlite', lambda: {'invalid_records': 0, 'file_errors': 1})
+    monkeypatch.setattr(cli, 'load_sqlite', lambda: {'invalid_records': 1, 'file_errors': 0})
     # Coordinate fetch, normalization, database storage and terminal reporting.
     cli.run_pipeline(offline=True)
     # Verify the expected condition: 'data-quality warnings' in capsys.readouterr().out.

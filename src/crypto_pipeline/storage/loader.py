@@ -150,6 +150,9 @@ def load_files(connection):
                 if interval == "1m":
                     # Update stats['one_minute_files_skipped'] using 1 for this step.
                     stats["one_minute_files_skipped"] += 1
+                elif data:
+                    stats["file_errors"] += 1
+                    emit("load", "file_error", file=path.name, error="Unsupported or malformed candle interval")
 
                 # Skip the remaining work for this item and continue the enclosing loop.
                 continue

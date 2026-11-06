@@ -58,7 +58,10 @@ def display_saved_path(path, project_root):
     """Display the raw file's location."""
 
     # Show the saved file relative to the repository so the terminal label stays compact.
-    relative_path = Path(path).relative_to(project_root)
+    relative_path = Path(path).resolve()
+    # External raw-directory overrides need an absolute display label.
+    if relative_path.is_relative_to(Path(project_root).resolve()):
+        relative_path = relative_path.relative_to(Path(project_root).resolve())
 
     # Create a Rich text object that can carry styled spans; store the result in line.
     line = Text()

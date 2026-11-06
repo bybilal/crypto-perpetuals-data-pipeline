@@ -5,6 +5,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 # Import sqlite3 for use below.
 import sqlite3
+from contextlib import closing
 # Import uuid for use below.
 import uuid
 # Import SCHEMA from .schema for use below.
@@ -65,10 +66,10 @@ def backup_database(path, directory=None):
     stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S%fZ")
     # Construct the path or ratio from the specified components; store the result in target.
     target = directory / f"{path.stem}-{stamp}-{uuid.uuid4().hex[:8]}.sqlite3"
-    # Open a database transaction context; commit on success or roll back on failure.
-    with sqlite3.connect(path.resolve().as_uri()+"?mode=ro", uri=True) as source:
-        # Open a database transaction context; commit on success or roll back on failure.
-        with sqlite3.connect(target) as dest:
+    # Close the read-only source handle after the backup operation.
+    with closing(sqlite3.connect(path.resolve().as_uri()+"?mode=ro", uri=True)) as source:
+        # Close the destination handle after verifying the backup.
+        with closing(sqlite3.connect(target)) as dest:
             # Copy a consistent SQLite snapshot through the database backup API.
             source.backup(dest)
             # Enter this branch only when dest.execute('PRAGMA integrity_check').fetchone()[0] != 'ok'.

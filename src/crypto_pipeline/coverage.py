@@ -24,6 +24,8 @@ def recent_coverage(db_path, now_ms=None):
     rows = []
     # mode=ro fails for a missing database instead of silently creating an empty file.
     with closing(sqlite3.connect(db_path.resolve().as_uri() + "?mode=ro", uri=True)) as connection:
+        # All streams must be observed from the same SQLite read snapshot.
+        connection.execute("BEGIN")
         for symbol in SYMBOLS:
             row = {"symbol": symbol}
             # Fixed table names keep query identifiers separate from user-supplied values.
@@ -35,6 +37,12 @@ def recent_coverage(db_path, now_ms=None):
                 # An absent row is reported without assuming why the source omitted it.
                 row[key] = len(expected & found)
                 row[key + "_missing_ms"] = sorted(expected - found)
+                # Age labels are diagnostic thresholds, not proof of the cause of missing data.
+                row[key + "_recent_missing_ms"] = [t for t in row[key + "_missing_ms"] if now_ms - t <= 600_000]
+                row[key + "_older_missing_ms"] = [t for t in row[key + "_missing_ms"] if now_ms - t > 600_000]
+                row[key + "_latest_ms"] = connection.execute(
+                    f"SELECT MAX(bucket_end_ms) FROM {table} WHERE symbol=?", (symbol,)
+                ).fetchone()[0]
             rows.append(row)
     return {"first_end_ms": start_ms, "last_end_ms": end_ms, "expected": 12, "contracts": rows}
 
@@ -46,6 +54,11 @@ def display_recent_coverage(db_path):
     console.print(f"  {utc_label(report['first_end_ms'])} — {utc_label(report['last_end_ms'])}")
     for row in report["contracts"]:
         console.print(f"  {row['symbol']:<14} OI {row['oi']:>2}/12   Candles {row['candles']:>2}/12")
-    # Missing source periods may be delayed, unavailable or outside our captured history.
+        # Missing source periods may be delayed, unavailable or outside our captured history.
+        # Preserve the familiar summary and add details only when missing data exists.
+        recent = len(row["oi_recent_missing_ms"]) + len(row["candles_recent_missing_ms"])
+        older = len(row["oi_older_missing_ms"]) + len(row["candles_older_missing_ms"])
+        if recent or older:
+            console.print(f"    [grey62]Missing observations: {recent} recent (≤10m), {older} older unresolved[/grey62]")
     emit("coverage", "checked", **report)
     console.print()

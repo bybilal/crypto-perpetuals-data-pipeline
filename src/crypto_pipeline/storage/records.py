@@ -13,6 +13,8 @@ def insert_observation(connection, table, row, raw_file_id):
     # Calculate [row[key] for key in columns[:-1]] + [raw_file_id]; store the result in values.
     values = [row[key] for key in columns[:-1]] + [raw_file_id]
     # Table and column names come exclusively from the allowlist above.
-    statement = f"INSERT OR IGNORE INTO {table} ({', '.join(columns)}) VALUES ({', '.join('?' for _ in columns)})"
+    # Ignore only duplicate observation keys; other integrity violations must propagate.
+    key = "symbol, source_timestamp_ms" if table == "oi_observations" else "symbol, open_ms"
+    statement = f"INSERT INTO {table} ({', '.join(columns)}) VALUES ({', '.join('?' for _ in columns)}) ON CONFLICT ({key}) DO NOTHING"
     # Return connection.execute(statement, values).rowcount to the caller.
     return connection.execute(statement, values).rowcount

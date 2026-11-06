@@ -15,6 +15,34 @@ from ..events import emit
 # Use the explicit text 'binance_usdm'; store the result in EXCHANGE.
 EXCHANGE = "binance_usdm"
 
+def validate_specification(spec):
+    """Validate the supported contract identity and filters before writing reference rows."""
+    # Missing/duplicate filter definitions cannot silently establish trading increments.
+    for field in ("symbol", "baseAsset", "quoteAsset", "marginAsset", "contractType", "status"):
+        if not isinstance(spec.get(field), str) or not spec[field].strip():
+            raise ValueError(f"Missing or invalid contract {field}")
+    filters = spec.get("filters")
+    if not isinstance(filters, list):
+        raise ValueError("Contract filters must be a list")
+    by_type = {}
+    for item in filters:
+        if not isinstance(item, dict) or not isinstance(item.get("filterType"), str):
+            raise ValueError("Invalid contract filter")
+        name = item["filterType"]
+        if name in by_type:
+            raise ValueError(f"Duplicate contract filter: {name}")
+        by_type[name] = item
+    # Price/quantity increments and minimum quantities are separate validations.
+    for name, fields in (("PRICE_FILTER", ("tickSize",)), ("LOT_SIZE", ("stepSize", "minQty"))):
+        for field in fields:
+            if field not in by_type.get(name, {}):
+                raise ValueError(f"Missing {name}.{field}")
+            decimal_text(by_type[name][field], f"{name}.{field}", True)
+    # An absent contractSize remains unknown; any supplied size must be positive.
+    if spec.get("contractSize") is not None:
+        decimal_text(spec["contractSize"], "contractSize", True)
+
+
 # Define load metadata with the inputs listed below.
 def load_metadata(connection, raw_dir, project_root):
     # Set the explicit starting value; store the result in imported.
@@ -46,7 +74,12 @@ def load_metadata(connection, raw_dir, project_root):
         # Convert the UTC filename timestamp to integer Unix milliseconds; store the result in retrieved.
         retrieved = filename_timestamp_ms(path.stem.removeprefix("exchangeInfo_"))
         # Build a collection by selecting and transforming the specified inputs; store the result in selected.
-        selected = {item["symbol"]: item for item in payload["symbols"] if isinstance(item, dict) and item.get("symbol") in SYMBOLS}
+        selected_items = [item for item in payload["symbols"] if isinstance(item, dict) and item.get("symbol") in SYMBOLS]
+        selected = {item["symbol"]: item for item in selected_items}
+        if len(selected_items) != len(selected):
+            raise ValueError("Duplicate configured symbol in exchangeInfo")
+        for spec in selected.values():
+            validate_specification(spec)
         # Enter this branch only when set(selected) != set(SYMBOLS).
         if set(selected) != set(SYMBOLS):
             # Stop this operation with ValueError('exchangeInfo is missing configured contracts').

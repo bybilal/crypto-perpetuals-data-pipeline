@@ -134,7 +134,9 @@ def run_pipeline(offline=False, limit=3, coverage=False):
         )
 
     # Write this stage event to the active run logs without printing to the terminal.
-    emit("pipeline", "completed", quality_warnings=bool(load_stats and (load_stats["invalid_records"] or load_stats["file_errors"])))
+    # File-level failures mean required sources could not be processed.
+    if load_stats and load_stats["file_errors"]:
+        raise RuntimeError(f"Load stage failed for {load_stats['file_errors']} source file(s); see run log")
 
     # Enter this branch only when load_stats and (load_stats['invalid_records'] or load_stats['file_errors']).
     if load_stats and (load_stats["invalid_records"] or load_stats["file_errors"]):
@@ -144,6 +146,9 @@ def run_pipeline(offline=False, limit=3, coverage=False):
     # Optional monitoring checks each stream independently over the last hour.
     if coverage:
         display_recent_coverage(DB_PATH)
+
+    # Only record success after all requested stages have finished.
+    emit("pipeline", "completed", quality_warnings=bool(load_stats and (load_stats["invalid_records"] or load_stats["file_errors"])))
 
     # Completion.
     elapsed = perf_counter() - started
