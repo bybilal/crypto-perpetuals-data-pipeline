@@ -75,13 +75,17 @@ Financial decimal values are preserved as strings during normalization to avoid 
 
 ### 3. SQLite Storage
 
-The local database currently contains three tables:
+The local database keeps the original three observation/source tables and adds four reference/provenance tables:
 
 | Table | Purpose |
 |---|---|
 | `raw_files` | Tracks source files, checksums, and retrieval metadata |
 | `oi_observations` | Stores historical open interest observations |
 | `price_candles` | Stores normalized five-minute OHLCV candles |
+| `exchanges` | Identifies the Binance USDⓈ-M market |
+| `assets` | Exchange-native base, quote and margin identifiers |
+| `contracts` | Latest actual exchangeInfo specifications |
+| `metadata_sources` | Saved specification payloads and provenance |
 
 The loader uses unique keys and conflict-safe inserts to avoid duplicating previously stored observations.
 
@@ -118,37 +122,10 @@ Offline mode skips API requests and reprocesses existing raw files, making devel
 
 ## Project Structure
 
-```text
-crypto-perpetuals-data-pipeline/
-├── src/
-│   ├── __init__.py
-│   ├── connectivity_probe.py
-│   ├── inspect_market_data.py
-│   ├── format_market_data.py
-│   ├── normalize_market_data.py
-│   ├── load_sqlite.py
-│   └── run_pipeline.py
-├── data/
-│   ├── raw/
-│   └── market_data.sqlite3
-├── tests/
-├── .gitignore
-├── requirements.txt
-└── README.md
-```
+Implementation now lives in `src/crypto_pipeline/`, with separate Binance retrieval, normalization, storage, reporting, logging and CLI modules. The original scripts remain small compatibility entry points.
 
-The `data/` directory contains generated local files and is not included in the Git repository.
-
-### Module Responsibilities
-
-| Module | Responsibility |
-|---|---|
-| `inspect_market_data.py` | Retrieve and save Binance API responses |
-| `format_market_data.py` | Present readable terminal output |
-| `normalize_market_data.py` | Validate and normalize market data |
-| `load_sqlite.py` | Create tables and load normalized records |
-| `run_pipeline.py` | Coordinate online and offline execution |
-| `connectivity_probe.py` | Earlier API connectivity experiment |
+- [Data model, ER diagrams, units and CoinGecko plan](docs/data-model.md)
+- [Installation, package layout, tests, logs and database safety](docs/operations.md)
 
 ## Getting Started
 
@@ -179,7 +156,8 @@ source .venv/bin/activate
 Install dependencies:
 
 ```bash
-python -m pip install -r requirements.txt
+python -m pip install -e '.[dev]'
+python -m pytest -q
 ```
 
 ### Run the Pipeline
@@ -193,7 +171,7 @@ python src/run_pipeline.py
 Offline mode:
 
 ```bash
-python src/run_pipeline.py --offline
+python src/run_pipeline.py --offline --human-log
 ```
 
 Offline mode requires previously saved raw JSON files.
@@ -236,7 +214,7 @@ The current local SQLite pipeline is a separate development milestone and has no
 | SQL | Data storage and joins | Implemented |
 | AWS Lambda | Earlier connectivity experiment | Tested |
 | Amazon CloudWatch | Earlier Lambda monitoring | Tested |
-| pytest | Automated tests | Planned |
+| pytest | Automated regression and data-quality tests | Implemented |
 | Amazon S3 | Cloud raw-data storage | Planned |
 | PostgreSQL | Cloud relational storage | Planned |
 | CI/CD | Automated validation and deployment | Planned |
@@ -255,13 +233,18 @@ The current local SQLite pipeline is a separate development milestone and has no
 - Timestamp-based OI/candle alignment
 - Offline execution mode
 - Rich terminal summaries
+- Packaged modules with compatible script entry points
+- Pytest regression and data-quality tests
+- Transactional schema upgrades with verified SQLite backups
+- Actual exchangeInfo reference tables and provenance
+- Structured JSONL and optional plain-text operational logs
 
 ### Next
 
-- Asset and perpetual-contract reference tables
-- Automated data-quality tests using pytest
-- Improved pipeline error reporting
-- Explicit ingestion-run tracking
+- Review database relocation to `data/db/market_data.sqlite3`
+- Verify underlying-token multipliers against explicit primary specifications
+- Review staged CoinGecko identity/category/valuation integration
+- Add continuous collection and gap monitoring
 
 ### Analytics
 
@@ -284,10 +267,10 @@ The current local SQLite pipeline is a separate development milestone and has no
 ## Current Limitations
 
 - Only two perpetual futures contracts are configured.
-- The SQLite schema does not yet store structured contract metadata.
+- Underlying-token multipliers remain unset where exchangeInfo supplies no verified conversion.
 - Historical open interest and candles are currently processed at a five-minute resolution.
 - The latest candle's quote volume delta is displayed, but CVD is not yet calculated.
-- Automated tests and production monitoring are not yet implemented.
+- Regression tests and per-run logs are implemented; production alerting and log retention are not.
 - The local pipeline is not yet deployed as a scheduled cloud service.
 
 This repository is an actively developed data engineering portfolio project.
