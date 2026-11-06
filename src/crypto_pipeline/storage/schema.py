@@ -1,3 +1,4 @@
+# Define the SQLite tables, keys and indexes; field meanings are in docs/data-model.md; store the result in SCHEMA.
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS raw_files (
     id INTEGER PRIMARY KEY,
