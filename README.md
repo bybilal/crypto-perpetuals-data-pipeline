@@ -24,7 +24,7 @@ Binance USDⓈ-M Futures REST API
                  |
                  v
           SQLite database
-       data/market_data.sqlite3
+       data/db/market_data.sqlite3
                  |
                  v
        SQL joins and summaries
@@ -241,7 +241,7 @@ The current local SQLite pipeline is a separate development milestone and has no
 
 ### Next
 
-- Review database relocation to `data/db/market_data.sqlite3`
+- Add regular collection, recent-history backfilling and explicit gap detection
 - Verify underlying-token multipliers against explicit primary specifications
 - Review staged CoinGecko identity/category/valuation integration
 - Add continuous collection and gap monitoring

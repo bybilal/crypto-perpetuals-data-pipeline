@@ -35,6 +35,9 @@ def display_summary(connection, stats, before, db_path=None):
     ]:
         display_metric(label, stats[key])
 
+    if stats.get("file_errors", 0):
+        display_metric("File errors", stats["file_errors"])
+
     rows = []
 
     for symbol in SYMBOLS:
@@ -100,7 +103,7 @@ def display_summary(connection, stats, before, db_path=None):
 
     console.print()
     console.print(
-        f"[grey62]Database:[/grey62] {db_path or 'data/market_data.sqlite3'}"
+        f"[grey62]Database:[/grey62] {db_path or 'data/db/market_data.sqlite3'}"
     )
 
 

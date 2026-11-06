@@ -98,6 +98,9 @@ def run_pipeline(offline=False):
 
     emit("pipeline", "completed", quality_warnings=bool(load_stats and (load_stats["invalid_records"] or load_stats["file_errors"])))
 
+    if load_stats and (load_stats["invalid_records"] or load_stats["file_errors"]):
+        console.print("[yellow]Completed with data-quality warnings; see the run log for details.[/yellow]")
+
     # Completion.
     elapsed = perf_counter() - started
 
@@ -139,17 +142,34 @@ def main():
 
 
     try:
-        with logging_run(args.log_dir, human=args.human_log):
+        with logging_run(args.log_dir, human=args.human_log) as run_id:
             try:
                 run_pipeline(offline=args.offline)
             except Exception as error:
                 emit("pipeline", "failed", error_type=type(error).__name__, error=str(error))
                 raise
+            finally:
+                display_run_logs(args.log_dir, run_id, args.human_log)
         return 0
     except Exception as error:
         console.print()
         console.print(f"[red]Pipeline failed:[/red] {error}")
         return 1
+
+
+def display_run_logs(directory, run_id, human):
+    """Show where to find this run after its terminal output has disappeared."""
+    console.print(f"[grey62]Run:[/grey62] {run_id}")
+    console.print("JSONL log: " + log_path_label(directory / f"{run_id}.jsonl"), style="grey62", markup=False)
+    if human:
+        console.print("Human log: " + log_path_label(directory / f"{run_id}.log"), style="grey62", markup=False)
+    console.print()
+
+
+def log_path_label(path):
+    """Keep local paths compact; preserve full paths for external log folders."""
+    resolved = path.resolve()
+    return str(resolved.relative_to(PROJECT_ROOT) if resolved.is_relative_to(PROJECT_ROOT) else resolved)
 
 
 def global_paths(args):
