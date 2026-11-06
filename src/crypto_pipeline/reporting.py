@@ -1,4 +1,5 @@
 from .formatting import *
+from .events import emit
 
 def display_heading(symbol, dataset, interval, count):
     """Display a minimal heading with a muted accent."""
@@ -52,6 +53,7 @@ def display_saved_path(path, project_root):
 def display_error(symbol, dataset, error_type, message):
     """Display errors using the same minimal terminal style."""
 
+    emit("fetch", "request_error", symbol=symbol, dataset=dataset, error_type=error_type, error=message)
     line = Text()
 
     line.append(f"{symbol} / {dataset}: ", style=ACCENT)

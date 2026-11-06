@@ -92,3 +92,37 @@ def test_growth_style():
     assert text.plain=="12  +3"
     assert text.spans[0].style==GROWTH_COLOR=="#72D9A4"
     assert count_with_growth(12,0).plain=="12"
+
+def test_old_one_minute_files_and_invalid_records(sandbox,samples):
+    raw,db=sandbox
+    k=copy.deepcopy(samples['BTCUSDT_klines'][0]); k[6]=k[0]+59999
+    (raw/'BTCUSDT_klines_20261106T235900Z.json').write_text(json.dumps([k]))
+    (raw/'BTCUSDT_oi_20261106T235900Z.json').write_text(json.dumps([{'symbol':'BTCUSDT'}]))
+    with sqlite3.connect(db) as c:
+        c.executescript(loader.SCHEMA)
+        stats=loader.load_files(c)
+        assert stats['one_minute_files_skipped']==1
+        assert stats['invalid_records']==1
+
+@pytest.mark.parametrize('value', [True,1.5,'1.5',float('inf')])
+def test_integer_fields_reject_truncation(samples,value):
+    oi=copy.deepcopy(samples['BTCUSDT_oi'][0]); oi['timestamp']=value
+    with pytest.raises(ValueError): normal.normalize_oi(oi,'BTCUSDT')
+    k=copy.deepcopy(samples['BTCUSDT_klines'][0]); k[8]=value
+    with pytest.raises(ValueError): normal.normalize_kline(k,'BTCUSDT')
+
+def test_explicit_unit_conversion_and_decimal_arithmetic():
+    from crypto_pipeline.units import underlying_quantity,quote_delta
+    with pytest.raises(ValueError): underlying_quantity('10',None,None)
+    with pytest.raises(ValueError): underlying_quantity('10','1000',None)
+    # A synthetic conversion example, NOT evidence for a real contract.
+    assert underlying_quantity('1.00000000000000000000000000001','1000','synthetic test')==Decimal('1000.00000000000000000000000001')
+    assert quote_delta('100000000000000000000000000000.01','50000000000000000000000000000.01')==Decimal('0.01')
+
+@pytest.mark.parametrize('row', [[0,0,0,0,0,0,float('inf')], {}, None])
+def test_malformed_interval_detection(row):
+    assert loader.detect_interval('klines',[row])=='unknown'
+
+def test_sqlite_integer_overflow_is_rejected(samples):
+    oi=copy.deepcopy(samples['BTCUSDT_oi'][0]); oi['timestamp']=2**63
+    with pytest.raises(ValueError): normal.normalize_oi(oi,'BTCUSDT')

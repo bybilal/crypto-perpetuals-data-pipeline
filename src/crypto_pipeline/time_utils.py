@@ -1,4 +1,5 @@
 from datetime import datetime, timezone, timedelta
+from .normalization import integer_value
 
 def filename_timestamp_ms(value):
     """Read the UTC retrieval time from a filename."""
@@ -12,16 +13,14 @@ def filename_timestamp_ms(value):
     dt = datetime.strptime(value, pattern)
     dt = dt.replace(tzinfo=timezone.utc)
 
-    return int(dt.timestamp() * 1000)
+    delta = dt - datetime(1970, 1, 1, tzinfo=timezone.utc)
+    return (delta.days * 86400 + delta.seconds) * 1000 + delta.microseconds // 1000
 
 
 def utc_label(milliseconds):
     """Convert milliseconds to a readable UTC timestamp."""
 
-    dt = datetime.fromtimestamp(
-        milliseconds / 1000,
-        tz=timezone.utc,
-    )
+    dt = datetime(1970, 1, 1, tzinfo=timezone.utc) + timedelta(milliseconds=milliseconds)
 
     return dt.strftime("%Y-%m-%d %H:%M:%S UTC")
 
@@ -37,11 +36,11 @@ def detect_interval(dataset, records):
 
     try:
         durations = {
-            int(row[6]) - int(row[0]) + 1
+            integer_value(row[6], "close timestamp") - integer_value(row[0], "open timestamp") + 1
             for row in records
         }
 
-    except (TypeError, IndexError, ValueError):
+    except (TypeError, IndexError, KeyError, ValueError):
         return "unknown"
 
     if durations == {300_000}:

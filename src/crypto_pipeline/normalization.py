@@ -25,6 +25,19 @@ def decimal_text(value, field, positive=False):
     return str(value)
 
 
+def integer_value(value, field):
+    """Reject booleans/floats rather than silently truncating millisecond times."""
+    if isinstance(value, bool) or not isinstance(value, (int, str)):
+        raise ValueError(f"{field} must be an integer")
+    try:
+        number = int(value)
+        if not -(2**63) <= number < 2**63:
+            raise ValueError(f"{field} exceeds SQLite integer range")
+        return number
+    except ValueError as error:
+        raise ValueError(f"{field} must be an integer") from error
+
+
 def normalize_oi(record, symbol):
     """Normalize one Binance historical OI observation."""
 
@@ -34,7 +47,7 @@ def normalize_oi(record, symbol):
     if record["symbol"] != symbol:
         raise ValueError("OI symbol does not match source file")
 
-    timestamp_ms = int(record["timestamp"])
+    timestamp_ms = integer_value(record["timestamp"], "OI timestamp")
 
     if timestamp_ms <= 0:
         raise ValueError("Invalid OI timestamp")
@@ -73,11 +86,11 @@ def normalize_kline(record, symbol):
     if not isinstance(record, list) or len(record) != 12:
         raise ValueError("Expected a 12-field kline list")
 
-    open_ms = int(record[0])
-    close_ms = int(record[6])
+    open_ms = integer_value(record[0], "open timestamp")
+    close_ms = integer_value(record[6], "close timestamp")
     bucket_end_ms = open_ms + INTERVAL_MS
 
-    if open_ms % INTERVAL_MS != 0:
+    if open_ms < 0 or open_ms % INTERVAL_MS != 0:
         raise ValueError("Kline opening time is not 5m-aligned")
 
     if close_ms != bucket_end_ms - 1:
@@ -108,7 +121,7 @@ def normalize_kline(record, symbol):
     if Decimal(taker_quote) > Decimal(quote_volume):
         raise ValueError("Taker-buy quote exceeds total volume")
 
-    trade_count = int(record[8])
+    trade_count = integer_value(record[8], "trade count")
 
     if trade_count < 0:
         raise ValueError("Negative trade count")

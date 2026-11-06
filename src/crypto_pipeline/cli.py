@@ -1,6 +1,11 @@
 
 import argparse
 from time import perf_counter
+from pathlib import Path
+from .events import emit, logging_run
+from .config import PROJECT_ROOT
+from .storage import loader
+from . import binance
 
 from .reporting import console
 from .binance import fetch_market_data
@@ -32,6 +37,7 @@ def run_pipeline(offline=False):
     """
 
     started = perf_counter()
+    emit("pipeline", "started", offline=offline)
 
     console.print()
     console.print(
@@ -41,6 +47,7 @@ def run_pipeline(offline=False):
     # Stage 1: Fetch source data.
     display_stage(1, "Fetch")
 
+    emit("fetch", "started", offline=offline)
     if offline:
         console.print(
             "  [grey62]Offline mode — API requests skipped[/grey62]"
@@ -70,6 +77,8 @@ def run_pipeline(offline=False):
                 "Resolve the errors or rerun with --offline."
             )
 
+    emit("fetch", "skipped" if offline else "completed", **({} if offline else {"counts": stats}))
+
     # Check that local source files are available.
     if not RAW_DIR.exists() or not any(RAW_DIR.glob("*.json")):
         raise FileNotFoundError(
@@ -79,12 +88,15 @@ def run_pipeline(offline=False):
     # Stage 2: Normalize and load.
     display_stage(2, "Normalize + SQLite")
 
-    load_sqlite()
+    emit("load", "started")
+    load_stats = load_sqlite()
 
     if not DB_PATH.exists():
         raise RuntimeError(
             "SQLite database was not created"
         )
+
+    emit("pipeline", "completed", quality_warnings=bool(load_stats and (load_stats["invalid_records"] or load_stats["file_errors"])))
 
     # Completion.
     elapsed = perf_counter() - started
@@ -118,18 +130,33 @@ def main():
         help="Load saved JSON without fetching Binance data",
     )
 
+    parser.add_argument("--raw-dir", type=Path, default=RAW_DIR)
+    parser.add_argument("--db-path", type=Path, default=DB_PATH)
+    parser.add_argument("--log-dir", type=Path, default=PROJECT_ROOT / "logs")
+    parser.add_argument("--human-log", action="store_true", help="Also write a plain-text operational log")
     args = parser.parse_args()
+    global_paths(args)
+
 
     try:
-        run_pipeline(offline=args.offline)
+        with logging_run(args.log_dir, human=args.human_log):
+            try:
+                run_pipeline(offline=args.offline)
+            except Exception as error:
+                emit("pipeline", "failed", error_type=type(error).__name__, error=str(error))
+                raise
         return 0
-
     except Exception as error:
         console.print()
-        console.print(
-            f"[red]Pipeline failed:[/red] {error}"
-        )
+        console.print(f"[red]Pipeline failed:[/red] {error}")
         return 1
+
+
+def global_paths(args):
+    """Configure legacy-compatible entry points consistently."""
+    global RAW_DIR, DB_PATH
+    RAW_DIR = loader.RAW_DIR = binance.RAW_DIR = args.raw_dir.resolve()
+    DB_PATH = loader.DB_PATH = args.db_path.resolve()
 
 
 if __name__ == "__main__":

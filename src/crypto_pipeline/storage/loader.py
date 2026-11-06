@@ -8,6 +8,10 @@ from ..summary import display_summary
 from ..time_utils import filename_timestamp_ms, utc_label, detect_interval
 from ..config import PROJECT_ROOT, RAW_DIR, DB_PATH, SYMBOLS
 from .schema import SCHEMA
+from .records import insert_observation
+from .migrations import apply_migrations
+from .metadata import load_metadata
+from ..events import emit
 from .queries import database_snapshot
 FILENAME_PATTERN = re.compile(r"^(BTCUSDT|1000PEPEUSDT)_(oi|klines)_(\d{8}T\d{6}(?:\d{6})?Z)\.json$")
 
@@ -21,6 +25,7 @@ def load_files(connection):
         "one_minute_files_skipped": 0,
         "incomplete_candles_skipped": 0,
         "invalid_records": 0,
+        "file_errors": 0,
     }
 
     for path in sorted(RAW_DIR.glob("*.json")):
@@ -44,9 +49,7 @@ def load_files(connection):
                 timestamp_text
             )
 
-            relative_path = path.relative_to(
-                PROJECT_ROOT
-            ).as_posix()
+            relative_path = path.relative_to(PROJECT_ROOT).as_posix() if path.is_relative_to(PROJECT_ROOT) else str(path.resolve())
 
             checksum = hashlib.sha256(
                 raw_bytes
@@ -121,32 +124,9 @@ def load_files(connection):
                             symbol,
                         )
 
-                        cursor = connection.execute(
-                            """
-                            INSERT OR IGNORE INTO oi_observations
-                            (
-                                symbol,
-                                source_timestamp_ms,
-                                bucket_end_ms,
-                                oi_quantity,
-                                oi_notional_quote,
-                                cmc_supply,
-                                raw_file_id
-                            )
-                            VALUES (?, ?, ?, ?, ?, ?, ?)
-                            """,
-                            (
-                                row["symbol"],
-                                row["source_timestamp_ms"],
-                                row["bucket_end_ms"],
-                                row["oi_quantity"],
-                                row["oi_notional_quote"],
-                                row["cmc_supply"],
-                                raw_file_id,
-                            ),
-                        )
+                        inserted = insert_observation(connection, "oi_observations", row, raw_file_id)
 
-                        stats["oi_inserted"] += cursor.rowcount
+                        stats["oi_inserted"] += inserted
 
                     else:
 
@@ -162,48 +142,11 @@ def load_files(connection):
                             ] += 1
                             continue
 
-                        cursor = connection.execute(
-                            """
-                            INSERT OR IGNORE INTO price_candles
-                            (
-                                symbol,
-                                open_ms,
-                                close_ms,
-                                bucket_end_ms,
-                                open_price,
-                                high_price,
-                                low_price,
-                                close_price,
-                                base_volume,
-                                quote_volume,
-                                trade_count,
-                                taker_buy_base,
-                                taker_buy_quote,
-                                raw_file_id
-                            )
-                            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                            """,
-                            (
-                                row["symbol"],
-                                row["open_ms"],
-                                row["close_ms"],
-                                row["bucket_end_ms"],
-                                row["open_price"],
-                                row["high_price"],
-                                row["low_price"],
-                                row["close_price"],
-                                row["base_volume"],
-                                row["quote_volume"],
-                                row["trade_count"],
-                                row["taker_buy_base"],
-                                row["taker_buy_quote"],
-                                raw_file_id,
-                            ),
-                        )
+                        inserted = insert_observation(connection, "price_candles", row, raw_file_id)
 
                         stats[
                             "candles_inserted"
-                        ] += cursor.rowcount
+                        ] += inserted
 
                 except (
                     ValueError,
@@ -213,6 +156,7 @@ def load_files(connection):
                 ) as error:
 
                     stats["invalid_records"] += 1
+                    emit("normalize", "invalid_record", file=path.name, error=str(error))
 
                     console.print(
                         f"[dim]Skipped {path.name}: {error}[/dim]"
@@ -224,6 +168,8 @@ def load_files(connection):
             TypeError,
         ) as error:
 
+            stats["file_errors"] += 1
+            emit("load", "file_error", file=path.name, error=str(error))
             console.print(
                 f"[dim]File error: {path.name}: {error}[/dim]"
             )
@@ -243,14 +189,16 @@ def main():
     try:
         connection.execute("PRAGMA foreign_keys = ON")
 
-        connection.executescript(SCHEMA)
+        apply_migrations(connection, DB_PATH)
 
         # Before ingestion.
         before = database_snapshot(connection)
 
         # Normalize and insert.
         with connection:
+            load_metadata(connection, RAW_DIR, PROJECT_ROOT)
             stats = load_files(connection)
+        emit("load", "completed", counts=stats, totals=database_snapshot(connection))
 
         # After ingestion, show growth.
         display_summary(
@@ -259,6 +207,8 @@ def main():
             before,
             DB_PATH.relative_to(PROJECT_ROOT) if DB_PATH.is_relative_to(PROJECT_ROOT) else DB_PATH,
         )
+
+        return stats
 
     finally:
         connection.close()

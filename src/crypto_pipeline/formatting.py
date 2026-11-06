@@ -1,5 +1,5 @@
 
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from decimal import Decimal
 from pathlib import Path
 
@@ -47,10 +47,7 @@ def format_price(value):
 def format_timestamp(milliseconds):
     """Convert Unix milliseconds into readable UTC."""
 
-    dt = datetime.fromtimestamp(
-        int(milliseconds) / 1000,
-        tz=timezone.utc,
-    )
+    dt = datetime(1970, 1, 1, tzinfo=timezone.utc) + timedelta(milliseconds=int(milliseconds))
 
     return dt.strftime("%Y-%m-%d %H:%M:%S UTC")
 

@@ -1,4 +1,4 @@
-from decimal import Decimal
+from .units import quote_delta
 from .reporting import console, display_metric, display_market_summary
 from .storage.queries import database_snapshot
 from .time_utils import utc_label
@@ -64,10 +64,7 @@ def display_summary(connection, stats, before, db_path=None):
             bucket_end, total_quote, taker_buy_quote = candle
 
             # Quote-denominated volume delta.
-            delta = (
-                Decimal(taker_buy_quote) * 2
-                - Decimal(total_quote)
-            )
+            delta = quote_delta(total_quote, taker_buy_quote)
 
             latest = utc_label(
                 bucket_end
