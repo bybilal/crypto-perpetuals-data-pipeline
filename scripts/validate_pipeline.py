@@ -121,7 +121,7 @@ def main():
                 assert before.keys()==after.keys()
                 assert all(Counter(before[t])==Counter(after[t]) for t in before),'Replay changed existing rows'
         report['isolated_replays']=2
-        report['idempotency']='Every row in all seven tables is unchanged after both ordinary offline CLI runs'
+        report['idempotency']='Every row in all tables is unchanged after both ordinary offline CLI runs'
         print(json.dumps(report,indent=2))
 
 

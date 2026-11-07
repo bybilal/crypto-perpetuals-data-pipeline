@@ -11,6 +11,7 @@ from ..normalization import decimal_text
 from ..time_utils import filename_timestamp_ms
 # Import emit from ..events for use below.
 from ..events import emit
+from .foundation import seed_native_mappings
 
 # Use the explicit text 'binance_usdm'; store the result in EXCHANGE.
 EXCHANGE = "binance_usdm"
@@ -134,6 +135,7 @@ def load_metadata(connection, raw_dir, project_root):
         # Update imported using 1 for this step.
         imported += 1
     # Write this stage event to the active run logs without printing to the terminal.
+    seed_native_mappings(connection)
     emit("metadata", "loaded", files_imported=imported)
     # Return imported to the caller.
     return imported

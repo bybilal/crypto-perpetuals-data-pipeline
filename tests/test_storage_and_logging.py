@@ -62,7 +62,7 @@ def test_legacy_migration_backup_and_idempotence(database):
         # Verify the expected condition: old.execute('SELECT * FROM oi_observations').fetchall() == before.
         assert old.execute('SELECT * FROM oi_observations').fetchall()==before
     # Verify the expected condition: c.execute('PRAGMA user_version').fetchone()[0] == 2.
-    assert c.execute('PRAGMA user_version').fetchone()[0]==2
+    assert c.execute('PRAGMA user_version').fetchone()[0]==3
     # Verify the expected condition: c.execute('PRAGMA foreign_key_check').fetchall() == [].
     assert c.execute('PRAGMA foreign_key_check').fetchall()==[]
 

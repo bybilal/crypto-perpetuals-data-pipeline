@@ -296,3 +296,7 @@ This repository is an actively developed data engineering portfolio project.
 ## Phase 1 validation
 
 See the [acceptance report](docs/phase1-validation.md) for verified units, timestamp findings, limitations and reproducible checks, and the [implemented SQLite ER diagram](docs/implemented-schema.md) for the actual version-2 schema. CoinGecko integration remains a separate approval-gated milestone.
+
+## CoinGecko database foundation
+
+Schema version 3 adds canonical identities and empty historical valuation/category tables. See the [foundation design, actual relationships and verification commands](docs/coingecko-foundation.md). BTC identity is verified; the Binance 1000PEPE identity link remains pending stronger evidence, independently of its unknown quantity multiplier. CoinGecko API ingestion is not implemented.
