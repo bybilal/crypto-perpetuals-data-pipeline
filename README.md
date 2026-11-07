@@ -300,3 +300,7 @@ See the [acceptance report](docs/phase1-validation.md) for verified units, times
 ## CoinGecko database foundation
 
 Schema version 3 adds canonical identities and empty historical valuation/category tables. See the [foundation design, actual relationships and verification commands](docs/coingecko-foundation.md). BTC identity is verified; the Binance 1000PEPE identity link remains pending stronger evidence, independently of its unknown quantity multiplier. CoinGecko API ingestion is not implemented.
+
+## Manual Bitcoin fundamentals
+
+`python -m crypto_pipeline.coingecko_cli --human-log` captures Bitcoin financial data independently of Binance. Use `--replay <capture-directory>` for offline idempotent ingestion. See [CoinGecko ingestion](docs/coingecko-ingestion.md) for free/Demo access, exact first rows, provenance and verification. Data provided by [CoinGecko](https://www.coingecko.com).
