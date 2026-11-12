@@ -7,13 +7,13 @@ from .gaps import reconcile
 from .events import emit
 
 @contextmanager
-def tracked_run(path, run_id, offline):
+def tracked_run(path, run_id, offline, mode=None):
     with closing(sqlite3.connect(path)) as c:
         c.execute('PRAGMA foreign_keys=ON')
         apply_migrations(c,path)
         before={t:c.execute(f'SELECT COALESCE(MAX(id),0) FROM {t}').fetchone()[0] for t in ('raw_files','metadata_sources')}
         with c:
-            c.execute("INSERT INTO pipeline_runs VALUES (?,?,NULL,?,NULL,'running',NULL)",(run_id,time_ns()//1000000,'offline' if offline else 'online'))
+            c.execute("INSERT INTO pipeline_runs VALUES (?,?,NULL,?,NULL,'running',NULL)",(run_id,time_ns()//1000000,mode or ('offline' if offline else 'online')))
         error=None
         try:
             yield

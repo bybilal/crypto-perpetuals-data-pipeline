@@ -308,3 +308,7 @@ Schema version 3 adds canonical identities and empty historical valuation/catego
 ## Persistent gaps and run lineage
 
 Schema version 4 retains missing/recovered five-minute observations and Binance execution IDs. `python -m crypto_pipeline.gaps status` is read-only. See [monitoring windows, actual relationships and limitations](docs/gaps-and-lineage.md). Detection does not perform historical backfilling.
+
+## Historical gap recovery
+
+Use `python -m crypto_pipeline.recovery --dry-run` to review unresolved Binance ranges; `--execute --max-requests 24` performs bounded OI-first recovery. See [recovery architecture and provenance](docs/historical-recovery.md). No scheduled backfill or dashboard is enabled.

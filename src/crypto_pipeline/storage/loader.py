@@ -32,7 +32,7 @@ from .queries import database_snapshot
 FILENAME_PATTERN = re.compile(r"^(BTCUSDT|1000PEPEUSDT)_(oi|klines)_(\d{8}T\d{6}(?:\d{6})?Z)\.json$")
 
 # Normalize saved JSON and insert valid 5m observations.
-def load_files(connection):
+def load_files(connection, paths=None):
     """Normalize saved JSON and insert valid 5m observations."""
 
     # Build the named fields used by this operation; store the result in stats.
@@ -47,7 +47,7 @@ def load_files(connection):
     }
 
     # Process each path from sorted(RAW_DIR.glob('*.json')).
-    for path in sorted(RAW_DIR.glob("*.json")):
+    for path in sorted(RAW_DIR.glob("*.json") if paths is None else paths):
 
         # Match the filename against the supported contract/dataset timestamp pattern; store the result in match.
         match = FILENAME_PATTERN.match(path.name)
