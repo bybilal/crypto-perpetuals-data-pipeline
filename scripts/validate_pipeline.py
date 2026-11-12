@@ -50,6 +50,8 @@ def main():
         # Read-only validation checks both database constraints and application-level joins.
         with closing(sqlite3.connect(db)) as c:
             before=table_rows(c)
+            # Operational lineage intentionally changes on replay; financial/reference rows must not.
+            operational={'pipeline_runs','run_sources','monitoring_windows','observation_gaps'}
             assert c.execute('PRAGMA integrity_check').fetchall()==[('ok',)]
             assert c.execute('PRAGMA foreign_key_check').fetchall()==[]
             report={'audited_at_utc':datetime.now(timezone.utc).isoformat(),
@@ -119,9 +121,9 @@ def main():
             with closing(sqlite3.connect(db)) as c:
                 after=table_rows(c)
                 assert before.keys()==after.keys()
-                assert all(Counter(before[t])==Counter(after[t]) for t in before),'Replay changed existing rows'
+                assert all(Counter(before[t])==Counter(after[t]) for t in before if t not in operational),'Replay changed existing rows'
         report['isolated_replays']=2
-        report['idempotency']='Every row in all tables is unchanged after both ordinary offline CLI runs'
+        report['idempotency']='Every row in all market/reference tables is unchanged (operational lineage excluded) after both ordinary offline CLI runs'
         print(json.dumps(report,indent=2))
 
 

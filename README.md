@@ -304,3 +304,7 @@ Schema version 3 adds canonical identities and empty historical valuation/catego
 ## Manual Bitcoin fundamentals
 
 `python -m crypto_pipeline.coingecko_cli --human-log` captures Bitcoin financial data independently of Binance. Use `--replay <capture-directory>` for offline idempotent ingestion. See [CoinGecko ingestion](docs/coingecko-ingestion.md) for free/Demo access, exact first rows, provenance and verification. Data provided by [CoinGecko](https://www.coingecko.com).
+
+## Persistent gaps and run lineage
+
+Schema version 4 retains missing/recovered five-minute observations and Binance execution IDs. `python -m crypto_pipeline.gaps status` is read-only. See [monitoring windows, actual relationships and limitations](docs/gaps-and-lineage.md). Detection does not perform historical backfilling.

@@ -11,6 +11,7 @@ import uuid
 # Import SCHEMA from .schema for use below.
 from .schema import SCHEMA
 from .foundation import FOUNDATION_SCHEMA
+from .lineage import SCHEMA as LINEAGE_SCHEMA
 # Import emit from ..events for use below.
 from ..events import emit
 
@@ -53,7 +54,7 @@ CREATE TABLE contracts (
 );
 """
 # Set the explicit starting value; store the result in LATEST_VERSION.
-LATEST_VERSION = 3
+LATEST_VERSION = 4
 
 # Define backup database with the inputs listed below.
 def backup_database(path, directory=None):
@@ -116,6 +117,8 @@ def apply_migrations(connection, path=None):
         script += REFERENCE_SCHEMA
     if version < 3:
         script += FOUNDATION_SCHEMA
+    if version < 4:
+        script += LINEAGE_SCHEMA
     # Update script using f'PRAGMA user_version={LATEST_VERSION};\nCOMMIT;' for this step.
     script += f"PRAGMA user_version={LATEST_VERSION};\nCOMMIT;"
     # Run this operation with the error handling and cleanup defined below.

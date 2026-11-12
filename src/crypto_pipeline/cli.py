@@ -2,6 +2,7 @@
 # Import argparse for use below.
 import argparse
 from .locking import pipeline_lock
+from .lineage import tracked_run
 from .coverage import display_recent_coverage
 # Import perf_counter from time for use below.
 from time import perf_counter
@@ -148,7 +149,7 @@ def run_pipeline(offline=False, limit=3, coverage=False):
         display_recent_coverage(DB_PATH)
 
     # Only record success after all requested stages have finished.
-    emit("pipeline", "completed", quality_warnings=bool(load_stats and (load_stats["invalid_records"] or load_stats["file_errors"])))
+    emit("pipeline", "ingestion_completed", quality_warnings=bool(load_stats and (load_stats["invalid_records"] or load_stats["file_errors"])))
 
     # Completion.
     elapsed = perf_counter() - started
@@ -216,8 +217,9 @@ def main():
             try:
                 # Coordinate fetch, normalization, database storage and terminal reporting.
                 # Serialize manual and scheduled CLI runs through the same database lock.
-                with pipeline_lock(DB_PATH):
+                with pipeline_lock(DB_PATH), tracked_run(DB_PATH, run_id, args.offline):
                     run_pipeline(offline=args.offline, limit=args.limit, coverage=args.coverage)
+                emit("pipeline", "completed")
             except Exception as error:
                 # Write this stage event to the active run logs without printing to the terminal.
                 emit("pipeline", "failed", error_type=type(error).__name__, error=str(error))
