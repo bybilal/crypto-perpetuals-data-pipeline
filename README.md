@@ -312,3 +312,7 @@ Schema version 4 retains missing/recovered five-minute observations and Binance 
 ## Historical gap recovery
 
 Use `python -m crypto_pipeline.recovery --dry-run` to review unresolved Binance ranges; `--execute --max-requests 24` performs bounded OI-first recovery. See [recovery architecture and provenance](docs/historical-recovery.md). No scheduled backfill or dashboard is enabled.
+
+## Local read-only dashboard
+
+Explore data-quality squares, an OI-change Z-score scanner, market timelines, and asset/source provenance with Streamlit + Plotly. Install `python -m pip install -e '.[dashboard,dev]'`, then run `python -m streamlit run dashboard.py --server.address 127.0.0.1 --server.port 8501 --browser.gatherUsageStats false`. See the [launch guide, table relationships, indicator definition, and limitations](docs/dashboard.md). The dashboard makes no API calls and does not change collection or stored data.
