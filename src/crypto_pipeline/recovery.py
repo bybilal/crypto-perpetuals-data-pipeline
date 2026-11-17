@@ -18,7 +18,7 @@ from .reporting import console
 STEP=300000
 
 
-def plan(c,now_ms,limit=499):
+def plan(c,now_ms,limit=499, before_ms=None):
     if not 1<=limit<=499:raise ValueError('Page size must be 1..499')
     jobs=[];outside=[]
     for dataset in ('oi','klines'):
@@ -26,6 +26,7 @@ def plan(c,now_ms,limit=499):
             stamps=[r[0] for r in c.execute("SELECT bucket_end_ms FROM observation_gaps WHERE exchange='binance_usdm' AND symbol=? AND dataset=? AND interval='5m' AND status='missing' ORDER BY bucket_end_ms",(symbol,dataset))]
             eligible=[]
             for t in stamps:
+                if before_ms is not None and t >= before_ms:continue
                 if dataset=='oi' and t < now_ms-30*86400000:outside.append((symbol,dataset,t))
                 else:eligible.append(t)
             for start,end in sorted(ranges(eligible)):
@@ -48,7 +49,7 @@ def missing(c,job):
     return c.execute("SELECT COUNT(*) FROM observation_gaps WHERE exchange='binance_usdm' AND symbol=? AND dataset=? AND interval='5m' AND status='missing' AND bucket_end_ms BETWEEN ? AND ?",(job['symbol'],job['dataset'],job['first'],job['last'])).fetchone()[0]
 
 
-def execute_job(path,job,log_dir):
+def execute_job(path,job,log_dir, parent_run_id=None):
     # Each page is an independent committed run. Release the shared collector lock between pages.
     with logging_run(log_dir,human=True) as run_id:
         try:
@@ -58,7 +59,7 @@ def execute_job(path,job,log_dir):
                     before=missing(c,job)
                     if not before:return
                     url=request_url(job)
-                    emit('recovery','requested',**job,url=url)
+                    emit('recovery','requested',**job,url=url,parent_run_id=parent_run_id)
                     binance.RAW_DIR.mkdir(parents=True,exist_ok=True)
                     data,raw=binance.request_and_save(url,job['symbol']+'_'+job['dataset'])
                     # Sidecar binds request bounds and execution ID to unmodified response bytes.
